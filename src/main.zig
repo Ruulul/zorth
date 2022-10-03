@@ -3,12 +3,15 @@ const std = @import("std");
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const inner_allocator = gpa.allocator();
+    var arena = std.heap.ArenaAllocator.init(inner_allocator);
+    const allocator = arena.allocator();
+    defer arena.deinit();
 
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    var forth = try Forth.init(allocator);
+    var forth = try Forth.init(&arena);
     defer forth.deinit();
 
     const stdin = std.io.getStdIn().reader();
@@ -38,7 +41,7 @@ pub fn main() !void {
 }
 
 const Forth = struct {
-    allocator: std.mem.Allocator = undefined,
+    arena: *std.heap.ArenaAllocator = undefined,
     stack: StackType = undefined,
     words: WordListType = undefined,
     const StackType = std.ArrayList([]u8);
@@ -47,11 +50,11 @@ const Forth = struct {
         core: *const fn (*Forth) anyerror!void,
         user_defined: []u8,
     };
-    pub fn init(allocator: std.mem.Allocator) !Forth {
+    pub fn init(arena: *std.heap.ArenaAllocator) !Forth {
         var self = Forth{};
-        self.allocator = allocator;
-        self.stack = StackType.init(allocator);
-        self.words = WordListType.init(allocator);
+        self.arena = arena;
+        self.stack = StackType.init(arena.allocator());
+        self.words = WordListType.init(arena.allocator());
         inline for (@typeInfo(core).Struct.decls) |decl| {
             try self.words.put(decl.name, .{ .core = @field(core, decl.name) });
         }
@@ -66,7 +69,7 @@ const Forth = struct {
                     .user_defined => |def| self.readInput(def),
                 };
             } else {
-                try self.stack.append(try self.allocator.dupe(u8, token));
+                try self.stack.append(try self.arena.allocator().dupe(u8, token));
             }
         }
         std.debug.print("The Stack right now: ", .{}); 
@@ -76,10 +79,7 @@ const Forth = struct {
         while (words.next()) |item| std.debug.print("{s} ", .{item.*});
     }
     pub fn deinit(self: *Forth) void {
-        for (self.stack.items) |item| self.stack.allocator.free(item);
         self.stack.deinit();
-        var words = self.words.valueIterator();
-        while (words.next()) |word| if (word.* == Entry.user_defined) self.stack.allocator.free(word.user_defined);
         self.words.deinit();
         self.* = undefined;
     }
@@ -90,28 +90,28 @@ const Forth = struct {
             var v2 = try std.fmt.parseInt(u8, self.stack.popOrNull() orelse "0", 0);
             var buffer: [5]u8 = undefined;
 
-            try self.stack.append(try self.allocator.dupe(u8, try std.fmt.bufPrint(&buffer, "{}", .{v1 +% v2})));
+            try self.stack.append(try self.arena.allocator().dupe(u8, try std.fmt.bufPrint(&buffer, "{}", .{v1 +% v2})));
         }
         pub fn @"-"(self: *Forth) anyerror!void {
             var v1 = try std.fmt.parseInt(u8, self.stack.popOrNull() orelse "0", 0);
             var v2 = try std.fmt.parseInt(u8, self.stack.popOrNull() orelse "0", 0);
             var buffer: [5]u8 = undefined;
 
-            try self.stack.append(try self.allocator.dupe(u8, try std.fmt.bufPrint(&buffer, "{}", .{v2 -% v1})));
+            try self.stack.append(try self.arena.allocator().dupe(u8, try std.fmt.bufPrint(&buffer, "{}", .{v2 -% v1})));
         }
         pub fn @"*"(self: *Forth) anyerror!void {
             var v1 = try std.fmt.parseInt(u8, self.stack.popOrNull() orelse "0", 0);
             var v2 = try std.fmt.parseInt(u8, self.stack.popOrNull() orelse "0", 0);
             var buffer: [5]u8 = undefined;
 
-            try self.stack.append(try self.allocator.dupe(u8, try std.fmt.bufPrint(&buffer, "{}", .{v2 *% v1})));
+            try self.stack.append(try self.arena.allocator().dupe(u8, try std.fmt.bufPrint(&buffer, "{}", .{v2 *% v1})));
         }
         pub fn @"/"(self: *Forth) anyerror!void {
             var v1 = try std.fmt.parseInt(u8, self.stack.popOrNull() orelse "0", 0);
             var v2 = try std.fmt.parseInt(u8, self.stack.popOrNull() orelse "0", 0);
             var buffer: [5]u8 = undefined;
 
-            try self.stack.append(try self.allocator.dupe(u8, try std.fmt.bufPrint(&buffer, "{}", .{v2 / v1})));
+            try self.stack.append(try self.arena.allocator().dupe(u8, try std.fmt.bufPrint(&buffer, "{}", .{v2 / v1})));
         }
     };
 };
