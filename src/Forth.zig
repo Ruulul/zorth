@@ -27,6 +27,10 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
     return self;
 }
 pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
+    if (depth > 100) {
+        try self.output.writeAll("\nToo much recursion!\nExiting...");
+        return error.TooMuchRecursion;
+    }
     var tokens = std.mem.tokenize(u8, input, " \r\n");
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
