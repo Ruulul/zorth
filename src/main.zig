@@ -31,7 +31,7 @@ pub fn main() !void {
                 }
                 return err;
             };
-            try forth.readInput(input);
+            try forth.readInput(input, 0);
         }
     }
     else {
@@ -47,6 +47,6 @@ pub fn main() !void {
         
         const input = try entry.readToEndAlloc(allocator, 1024 * 1024 * 300);
         var lines = std.mem.tokenize(u8, input, "\n\r;");
-        while (lines.next()) |line| try forth.readInput(line);
+        while (lines.next()) |line| try forth.readInput(line, 0);
     }
 }

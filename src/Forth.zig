@@ -7,11 +7,11 @@ stack: StackType = undefined,
 words: WordListType = undefined,
 output: std.fs.File.Writer = undefined,
 
-const StackType = std.ArrayList([]u8);
+const StackType = std.ArrayList([]const u8);
 const WordListType = std.StringHashMap(Entry);
 const Entry = union(enum) {
     core: *const fn (*Forth) anyerror!void,
-    user_defined: []u8,
+    user_defined: []const u8,
 };
 
 pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth {
@@ -26,19 +26,36 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
     }
     return self;
 }
-pub fn readInput(self: *Forth, input: []const u8) !void {
+pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     var tokens = std.mem.tokenize(u8, input, " \r\n");
     while (tokens.next()) |token| {
-        if (self.words.contains(token)) {
+        if (std.mem.eql(u8, token, ":")) {
+            try self.compileWord(input);
+            while (tokens.next()) |t| {
+                if (std.mem.eql(u8, t, ";")) break;
+            }
+        }
+        else if (self.words.contains(token)) {
             try switch (self.words.get(token).?) {
                 .core => |func| func(self),
-                .user_defined => |def| self.readInput(def),
+                .user_defined => |def| self.readInput(def, depth + 1),
             };
         } else {
             try self.stack.append(try self.arena.allocator().dupe(u8, token));
         }
     }
-    try self.output.writeAll("ok");
+    if (depth == 0) try self.output.writeAll("ok");
+}
+pub fn compileWord(self: *Forth, input: []const u8) !void {
+    const start_of_word = std.mem.indexOfPos(u8, input, 0, ":").? + 2;
+    const end_of_word = std.mem.indexOfPos(u8, input, start_of_word, " ").?;
+    const word = input[start_of_word..end_of_word];
+
+    const start_of_def = end_of_word + 1;
+    const end_of_def = std.mem.indexOfPos(u8, input, start_of_def, ";").?;
+    const def = input[start_of_def..end_of_def];
+
+    try self.words.put(try self.arena.allocator().dupe(u8, word), .{ .user_defined = try self.arena.allocator().dupe(u8, def) });
 }
 pub fn deinit(self: *Forth) void {
     self.stack.deinit();
