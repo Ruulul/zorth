@@ -24,7 +24,13 @@ pub fn main() !void {
         while (true) {
             try stdout.writeAll("\n|> ");
             var buffer: [256]u8 = undefined;
-            const input = try stdin.readUntilDelimiter(&buffer, '\n');
+            const input = stdin.readUntilDelimiter(&buffer, '\n') catch |err| {
+                if (err == error.EndOfStream) {
+                    try stdout.writeAll("Byeee :)");
+                    break;
+                }
+                return err;
+            };
             try forth.readInput(input);
         }
     }
