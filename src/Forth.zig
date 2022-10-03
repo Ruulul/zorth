@@ -35,9 +35,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
             try self.compileWord(input);
-            while (tokens.next()) |t| {
-                if (std.mem.eql(u8, t, ";")) break;
-            }
+            tokens.index = std.mem.indexOfPos(u8, input, tokens.index, ";").?;
         }
         else if (self.words.contains(token)) {
             try switch (self.words.get(token).?) {
