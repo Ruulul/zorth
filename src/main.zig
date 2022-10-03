@@ -11,20 +11,20 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    var forth = try Forth.init(&arena);
-    defer forth.deinit();
-
     const stdin = std.io.getStdIn().reader();
     const stdout = std.io.getStdOut().writer();
 
     if (args.len < 2) {
         std.log.info("Init in cli mode.", .{});
 
+        var forth = try Forth.init(&arena, stdout);
+        defer forth.deinit();
+
         while (true) {
             try stdout.writeAll("\n|> ");
             var buffer: [256]u8 = undefined;
             const input = try stdin.readUntilDelimiter(&buffer, '\n');
-            try forth.readInput(input, stdout);
+            try forth.readInput(input);
         }
     }
     else {
@@ -34,9 +34,13 @@ pub fn main() !void {
             return;
         };
         defer entry.close();
+
+        var forth = try Forth.init(&arena, stdout);
+        defer forth.deinit();
+        
         const input = try entry.readToEndAlloc(allocator, 1024 * 1024 * 300);
         var lines = std.mem.tokenize(u8, input, "\n\r;");
-        while (lines.next()) |line| try forth.readInput(line, stdout);
+        while (lines.next()) |line| try forth.readInput(line);
     }
 }
 
@@ -44,15 +48,17 @@ const Forth = struct {
     arena: *std.heap.ArenaAllocator = undefined,
     stack: StackType = undefined,
     words: WordListType = undefined,
+    output: std.fs.File.Writer = undefined,
     const StackType = std.ArrayList([]u8);
     const WordListType = std.StringHashMap(Entry);
     const Entry = union(enum) {
         core: *const fn (*Forth) anyerror!void,
         user_defined: []u8,
     };
-    pub fn init(arena: *std.heap.ArenaAllocator) !Forth {
+    pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth {
         var self = Forth{};
         self.arena = arena;
+        self.output = output;
         self.stack = StackType.init(arena.allocator());
         self.words = WordListType.init(arena.allocator());
         inline for (@typeInfo(core).Struct.decls) |decl| {
@@ -60,27 +66,19 @@ const Forth = struct {
         }
         return self;
     }
-    pub fn readInput(self: *Forth, input: []const u8, output: anytype) !void {
-        std.debug.assert(
-            @hasDecl(@TypeOf(output), "write")
-        and @hasDecl(@TypeOf(output), "writeAll")
-        and @hasDecl(@TypeOf(output), "writeByte")
-        );
+    pub fn readInput(self: *Forth, input: []const u8) !void {
         var tokens = std.mem.tokenize(u8, input, " \r\n");
         while (tokens.next()) |token| {
             if (self.words.contains(token)) {
                 try switch (self.words.get(token).?) {
                     .core => |func| func(self),
-                    .user_defined => |def| self.readInput(def, output),
+                    .user_defined => |def| self.readInput(def),
                 };
             } else {
                 try self.stack.append(try self.arena.allocator().dupe(u8, token));
             }
         }
-        if (self.stack.items.len > 0) {
-            try output.writeAll(self.stack.items[self.stack.items.len - 1]);
-            try output.writeByte('\n');
-        }
+        try self.output.writeAll("\nok");
     }
     pub fn deinit(self: *Forth) void {
         self.stack.deinit();
@@ -122,5 +120,9 @@ const Forth = struct {
             if (v) |value| for ([_]void{{}} ** 2) |_| try self.stack.append(try self.arena.allocator().dupe(u8, value));
         }
         const DUP = dup;
+        pub fn @"."(self: *Forth) anyerror!void {
+            const v = self.stack.popOrNull();
+            if (v) |value| try self.output.writeAll(value);
+        }
     };
 };
