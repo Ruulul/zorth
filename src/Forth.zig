@@ -38,7 +38,7 @@ pub fn readInput(self: *Forth, input: []const u8) !void {
             try self.stack.append(try self.arena.allocator().dupe(u8, token));
         }
     }
-    try self.output.writeAll("\nok");
+    try self.output.writeAll("ok");
 }
 pub fn deinit(self: *Forth) void {
     self.stack.deinit();
