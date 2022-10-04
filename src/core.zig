@@ -6,8 +6,8 @@ fn popStack(self: *Forth) error{StackUnderflow}!i32 {
 }
 //TODO: add underflow stack errors, treat them
 pub fn @"="(self: *Forth) anyerror!void {
-    const v1 = self.stack.popOrNull() orelse return;
-    const v2 = self.stack.popOrNull() orelse return;
+    const v1 = try popStack(self);
+    const v2 = try popStack(self);
     try self.stack.append(@boolToInt(v1 == v2));
 }
 pub fn @"+"(self: *Forth) anyerror!void {
