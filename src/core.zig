@@ -4,7 +4,6 @@ const Forth = @import("Forth.zig");
 fn popStack(self: *Forth) error{StackUnderflow}!i32 {
     return self.stack.popOrNull() orelse error.StackUnderflow;
 }
-//TODO: add underflow stack errors, treat them
 pub fn @"="(self: *Forth) anyerror!void {
     const v1 = try popStack(self);
     const v2 = try popStack(self);
@@ -41,9 +40,10 @@ pub fn drop(self: *Forth) anyerror!void {
 pub const DROP = drop;
 pub fn @"."(self: *Forth) anyerror!void {
     const value = try popStack(self);
-    try std.fmt.formatInt(@truncate(u8, @bitCast(u32, value)), 10, .upper, .{}, self.output);
+    try std.fmt.formatInt(value, 10, .upper, .{}, self.output);
     try self.output.writeByte('\n');
 }
+//TODO: Better char handling
 pub fn emit(self: *Forth) anyerror!void {
     const value = try popStack(self);
     try std.fmt.formatIntValue(@truncate(u8, @bitCast(u32, value)), "c", .{}, self.output);
