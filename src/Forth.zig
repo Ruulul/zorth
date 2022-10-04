@@ -7,7 +7,7 @@ stack: StackType = undefined,
 words: WordListType = undefined,
 output: std.fs.File.Writer = undefined,
 
-const StackType = std.ArrayList([]const u8);
+const StackType = std.ArrayList(i32);
 const WordListType = std.StringHashMap(Entry);
 const Entry = union(enum) {
     core: *const fn (*Forth) anyerror!void,
@@ -38,12 +38,18 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
             tokens.index = std.mem.indexOfPos(u8, input, tokens.index, ";").?;
         }
         else if (self.words.contains(token)) {
-            try switch (self.words.get(token).?) {
-                .core => |func| func(self),
-                .user_defined => |def| self.readInput(def, depth + 1),
-            };
+            switch (self.words.get(token).?) {
+                .core => |func| func(self) catch |e| switch (e) {
+                        error.StackUnderflow => {
+                            try self.output.writeAll("stack underflow \n");
+                        },
+                        else => try self.output.writeAll(@errorName(e))
+                    },
+                .user_defined => |def| try self.readInput(def, depth + 1),
+            }
         } else {
-            try self.stack.append(try self.arena.allocator().dupe(u8, token));
+            var number = std.fmt.parseInt(i32, token, 0) catch { try self.output.print(" {s} ?\n", .{token}); continue; };
+            try self.stack.append(number);
         }
     }
     if (depth == 0) try self.output.writeAll("ok");
