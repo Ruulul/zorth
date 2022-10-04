@@ -62,3 +62,20 @@ pub fn emit(self: *Forth) anyerror!void {
     try std.fmt.formatIntValue(@truncate(u8, @bitCast(u32, value)), "c", .{}, self.output);
 }
 pub const EMIT = emit;
+pub fn @"("(self: *Forth) anyerror!void {
+    if (std.mem.indexOfPos(u8, self.params, self.params_index.*, ")")) |new_index| self.params_index.* = new_index + 1;
+}
+pub fn see(self: *Forth) anyerror!void {
+    var tokens = std.mem.tokenize(u8, self.params, " \r\n");
+    tokens.index = self.params_index.*;
+    defer self.params_index.* = tokens.index;
+    if (tokens.next()) |word| {
+        if (self.words.get(word)) |entry| {
+            try self.output.writeAll(switch (entry) {
+                .core => "Cant see core definitions",
+                .user_defined => |e| e,
+            });
+        } else try self.output.print("{s} ?", .{word});
+    }
+}
+pub const SEE = see;

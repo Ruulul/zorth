@@ -4,8 +4,11 @@ const core = @import("core.zig");
 
 arena: *std.heap.ArenaAllocator = undefined,
 stack: StackType = undefined,
+params: []const u8 = undefined,
+params_index: *usize = undefined,
 words: WordListType = undefined,
 output: std.fs.File.Writer = undefined,
+max_depth: usize = 100,
 
 const StackType = std.ArrayList(i32);
 const WordListType = std.StringHashMap(Entry);
@@ -27,11 +30,13 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
     return self;
 }
 pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
-    if (depth > 100) {
+    if (depth > self.max_depth) {
         try self.output.writeAll("\nToo much recursion!\nExiting...");
         return error.TooMuchRecursion;
     }
+    self.params = input;
     var tokens = std.mem.tokenize(u8, input, " \r\n");
+    self.params_index = &tokens.index;
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
             try self.compileWord(input);
