@@ -4,10 +4,23 @@ const Forth = @import("Forth.zig");
 fn popStack(self: *Forth) error{StackUnderflow}!i32 {
     return self.stack.popOrNull() orelse error.StackUnderflow;
 }
+inline fn boolToInt(ok: bool) i32 {
+    return @as(i32, @boolToInt(ok)) * -1;
+}
 pub fn @"="(self: *Forth) anyerror!void {
     const v1 = try popStack(self);
     const v2 = try popStack(self);
-    try self.stack.append(@boolToInt(v1 == v2));
+    try self.stack.append(boolToInt(v2 == v1));
+}
+pub fn @">"(self: *Forth) anyerror!void {
+    const v1 = try popStack(self);
+    const v2 = try popStack(self);
+    try self.stack.append(boolToInt(v2 > v1));
+}
+pub fn @"<"(self: *Forth) anyerror!void {
+    const v1 = try popStack(self);
+    const v2 = try popStack(self);
+    try self.stack.append(boolToInt(v2 < v1));
 }
 pub fn @"+"(self: *Forth) anyerror!void {
     const v1 = try popStack(self);
