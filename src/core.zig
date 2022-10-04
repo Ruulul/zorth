@@ -54,7 +54,7 @@ pub const DROP = drop;
 pub fn @"."(self: *Forth) anyerror!void {
     const value = try popStack(self);
     try std.fmt.formatInt(value, 10, .upper, .{}, self.output);
-    try self.output.writeByte('\n');
+    try cr(self);
 }
 pub fn cr(self: *Forth) anyerror!void {
     try self.output.writeByte('\n');
@@ -79,6 +79,7 @@ pub fn see(self: *Forth) anyerror!void {
                 .core => "Cant see core definitions",
                 .user_defined => |e| e,
             });
+            try cr(self);
         } else try self.output.print("{s} ?", .{word});
     }
 }
