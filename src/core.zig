@@ -60,6 +60,5 @@ pub fn @"."(self: *Forth) anyerror!void {
 pub fn emit(self: *Forth) anyerror!void {
     const value = try popStack(self);
     try std.fmt.formatIntValue(@truncate(u8, @bitCast(u32, value)), "c", .{}, self.output);
-    try self.output.writeByte('\n');
 }
 pub const EMIT = emit;

@@ -39,11 +39,9 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
         }
         else if (self.words.contains(token)) {
             switch (self.words.get(token).?) {
-                .core => |func| func(self) catch |e| switch (e) {
-                        error.StackUnderflow => {
-                            try self.output.writeAll("stack underflow \n");
-                        },
-                        else => try self.output.writeAll(@errorName(e))
+                .core => |func| func(self) catch |e| try switch (e) {
+                        error.StackUnderflow => self.output.writeAll("stack underflow \n"),
+                        else => self.output.writeAll(@errorName(e))
                     },
                 .user_defined => |def| try self.readInput(def, depth + 1),
             }
@@ -52,7 +50,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
             try self.stack.append(number);
         }
     }
-    if (depth == 0) try self.output.writeAll("ok");
+    if (depth == 0) try self.output.writeAll("\nok");
 }
 pub fn compileWord(self: *Forth, input: []const u8) !void {
     const start_of_word = std.mem.indexOfPos(u8, input, 0, ":").? + 2;
