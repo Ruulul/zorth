@@ -2,9 +2,7 @@ const std = @import("std");
 const Forth = @import("Forth.zig");
 
 fn popStack(self: *Forth) error{StackUnderflow}!i32 {
-    return self.stack.popOrNull() orelse {
-        return error.StackUnderflow;
-    };
+    return self.stack.popOrNull() orelse error.StackUnderflow;
 }
 //TODO: add underflow stack errors, treat them
 pub fn @"="(self: *Forth) anyerror!void {
