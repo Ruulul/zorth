@@ -72,15 +72,27 @@ pub const @"/" = Core {
     .func = @"/Fn",
     .def = "( n1 n2 -- n1/n2 )",
 };
-fn dupFn(self: *Forth) anyerror!void {
-    const value = try popStack(self);
-    for ([_]void{{}} ** 2) |_| try self.stack.append(value);
+fn pickFn(self: *Forth) anyerror!void {
+    const n = try popStack(self);
+    const i = self.stack.items.len - @as(usize, @bitCast(u32, n)) - 1;
+    const nth = if (i >= 0 and i < self.stack.items.len) self.stack.items[i] else return error.StackUnderflow;
+    try self.stack.append(nth);
 }
-pub const dup = Core {
-    .func = dupFn,
-    .def = "( n -- n n )",
+pub const pick = Core {
+    .func = pickFn,
+    .def = "( a0 .. an n -- a0 .. an a0 )",
 };
-pub const DUP = dup;
+fn rollFn(self: *Forth) anyerror!void {
+    const n = try popStack(self);
+    const i = self.stack.items.len - @as(usize, @bitCast(u32, n)) - 1;
+    if (i >= 0 and i < self.stack.items.len) 
+        try self.stack.append(self.stack.orderedRemove(i)) 
+    else return error.StackUnderflow;
+}
+pub const roll = Core {
+    .func = rollFn,
+    .def = "( a0 .. an n -- a1 .. an a0 )",
+};
 fn dropFn(self: *Forth) anyerror!void {
     _ = try popStack(self);
 }
@@ -88,7 +100,6 @@ pub const drop = Core {
     .func = dropFn,
     .def = "( n -- )",
 };
-pub const DROP = drop;
 fn @".Fn"(self: *Forth) anyerror!void {
     const value = try popStack(self);
     try std.fmt.formatInt(value, 10, .upper, .{}, self.output);
@@ -105,7 +116,6 @@ pub const cr = Core {
     .func = crFn,
     .def = "( -- )",
 };
-pub const CR = cr;
 //TODO: Better char handling
 fn emitFn(self: *Forth) anyerror!void {
     const value = try popStack(self);
@@ -115,7 +125,6 @@ pub const emit = Core {
     .func = emitFn,
     .def = "( c -- )",
 };
-pub const EMIT = emit;
 fn @"(Fn"(self: *Forth) anyerror!void {
     if (std.mem.indexOfPos(u8, self.params, self.params_index.*, ")")) |new_index| self.params_index.* = new_index + 1;
 }

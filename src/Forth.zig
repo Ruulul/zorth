@@ -20,6 +20,7 @@ pub const Core = struct {
     func: *const fn (*Forth) anyerror!void,
     def: []const u8,
 };
+const compiler = @embedFile("compiler.f");
 pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth {
     var self = Forth{};
     self.arena = arena;
@@ -30,6 +31,7 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
         if (decl.is_pub)
             try self.words.put(decl.name, .{ .core = @field(core, decl.name) });
     }
+    try self.readInput(compiler, 1);
     return self;
 }
 pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
