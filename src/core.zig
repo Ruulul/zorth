@@ -62,12 +62,16 @@ pub const @"*" = Core {
     .func = @"*Fn",
     .def = "( n1 n2 -- n1*n2 )",
 };
-fn @"/MODFn" (self: *Forth) anyerror!void {
+fn @"/modFn" (self: *Forth) anyerror!void {
     const v1 = try popStack(self);
     const v2 = try popStack(self);
     try self.stack.append(@divTrunc(v2, v1));
     try self.stack.append(@rem(v2, v1));
 }
+pub const @"/mod" = Core {
+    .func = @"/modFn",
+    .def = "( n1 n2 -- result mod )",
+};
 fn pickFn(self: *Forth) anyerror!void {
     const n = try popStack(self);
     const i = self.stack.items.len - @as(usize, @bitCast(u32, n));
@@ -149,10 +153,16 @@ fn @"!Fn"(self: *Forth) anyerror!void {
     const value = try popStack(self);
 
     self.var_stack.items[@as(usize, @bitCast(u32, addr))] = value;
+
+    if (self.words.get("delimiter")) |delimiter_addr| {
+        if (delimiter_addr == .variable and delimiter_addr.variable == addr) {
+            self.delimiter = @truncate(u8, @bitCast(u32, value));
+        }
+    }
 }
 pub const @"!" = Core {
     .func = @"!Fn",
-    .def = " ",
+    .def = "( value addr -- )",
 };
 fn @"@Fn"(self: *Forth) anyerror!void {
     const addr = try popStack(self);
@@ -162,5 +172,5 @@ fn @"@Fn"(self: *Forth) anyerror!void {
 }
 pub const @"@" = Core {
     .func = @"@Fn",
-    .def = " ",
+    .def = "( addr -- value )",
 };

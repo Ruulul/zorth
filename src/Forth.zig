@@ -7,6 +7,7 @@ stack: StackType,
 var_stack: StackType,
 params: []const u8 = undefined,
 params_index: *usize = undefined,
+delimiter: u8 = ' ',
 words: WordListType,
 output: std.fs.File.Writer,
 max_depth: usize = 100,
@@ -35,8 +36,9 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
         if (decl.is_pub)
             try self.words.put(decl.name, .{ .core = @field(core, decl.name) });
     }
-    try self.words.put("delimiter", .{ .variable = ' ' });
-    try self.readInput(compiler, 1);
+    try self.words.put("delimiter", .{ .variable = self.delimiter });
+    var lines = std.mem.tokenize(u8, compiler, "\n\r");
+    while (lines.next()) |line| try self.readInput(line, 1);
     return self;
 }
 pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
@@ -48,7 +50,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     self.params = try std.ascii.allocLowerString(self.arena.allocator(), input);
     defer self.arena.allocator().free(self.params);
 
-    var tokens = std.mem.tokenize(u8, self.params, " \r\n");
+    var tokens = std.mem.tokenize(u8, self.params, &.{ self.delimiter, '\r', '\n' });
     self.params_index = &tokens.index;
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
