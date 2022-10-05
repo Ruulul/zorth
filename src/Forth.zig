@@ -2,12 +2,12 @@ const Forth = @This();
 const std = @import("std");
 const core = @import("core.zig");
 
-arena: *std.heap.ArenaAllocator = undefined,
-stack: StackType = undefined,
+arena: *std.heap.ArenaAllocator,
+stack: StackType,
 params: []const u8 = undefined,
 params_index: *usize = undefined,
-words: WordListType = undefined,
-output: std.fs.File.Writer = undefined,
+words: WordListType,
+output: std.fs.File.Writer,
 max_depth: usize = 100,
 
 const StackType = std.ArrayList(i32);
@@ -22,11 +22,12 @@ pub const Core = struct {
 };
 const compiler = @embedFile("compiler.f");
 pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth {
-    var self = Forth{};
-    self.arena = arena;
-    self.output = output;
-    self.stack = StackType.init(arena.allocator());
-    self.words = WordListType.init(arena.allocator());
+    var self = Forth{ 
+        .arena = arena, 
+        .output = output, 
+        .stack = StackType.init(arena.allocator()), 
+        .words = WordListType.init(arena.allocator()),
+    };
     inline for (@typeInfo(core).Struct.decls) |decl| {
         if (decl.is_pub)
             try self.words.put(decl.name, .{ .core = @field(core, decl.name) });
