@@ -49,6 +49,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     defer self.arena.allocator().free(self.params);
 
     var tokens = std.mem.tokenize(u8, self.params, " \r\n");
+    self.params_index = &tokens.index;
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
             try self.compileWord(self.params);
