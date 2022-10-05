@@ -1,10 +1,11 @@
 : dup  0 pick ;
+: 2drop drop drop ;
 : over 1 pick ;
 : swap 1 roll ;
 : rot  2 roll ;
 : cr  10 emit ;
-: (   40 delimiter ! parse drop 32 delimiter ! ;
-: \   -1 delimiter ! parse drop 32 delimiter ! ;
+: (   40 delimiter ! parse 2drop 32 delimiter ! ;
+: \   -1 delimiter ! parse 2drop 32 delimiter ! ;
 : / /mod drop ;
 : % /mod swap drop ;
 : mod % ;
