@@ -12,11 +12,14 @@ max_depth: usize = 100,
 
 const StackType = std.ArrayList(i32);
 const WordListType = std.StringHashMap(Entry);
-const Entry = union(enum) {
-    core: *const fn (*Forth) anyerror!void,
+pub const Entry = union(enum) {
+    core: Core,
     user_defined: []const u8,
 };
-
+pub const Core = struct {
+    func: *const fn (*Forth) anyerror!void,
+    def: []const u8,
+};
 pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth {
     var self = Forth{};
     self.arena = arena;
@@ -44,7 +47,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
         }
         else if (self.words.contains(token)) {
             switch (self.words.get(token).?) {
-                .core => |func| func(self) catch |e| try switch (e) {
+                .core => |func| func.func(self) catch |e| try switch (e) {
                         error.StackUnderflow => self.output.writeAll("stack underflow \n"),
                         else => self.output.writeAll(@errorName(e))
                     },
