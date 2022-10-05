@@ -152,6 +152,7 @@ fn @"!Fn"(self: *Forth) anyerror!void {
     const addr = try popStack(self);
     const value = try popStack(self);
 
+    std.log.debug("addr: {any}, value: {any}",.{addr, value});
     self.var_stack.items[@as(usize, @bitCast(u32, addr))] = value;
 
     if (self.words.get("delimiter")) |delimiter_addr| {
@@ -174,6 +175,7 @@ pub const @"@" = Core {
     .func = @"@Fn",
     .def = "( addr -- value )",
 };
+//TODO: rewrite on forth to put in the string buffer
 fn @"\"Fn"(self: *Forth) anyerror!void {
     const previous_delimiter = self.words.get("delimiter");
     try self.words.put("delimiter", .{ .variable = '"' });
@@ -211,3 +213,21 @@ fn parseFn(self: *Forth) anyerror!void {
         try self.stack.append(0);
     }
 }
+pub const parse = Core {
+    .func = parseFn,
+    .def = "( -- addr len)",
+};
+fn variableFn(self: *Forth) anyerror!void {
+    const start_word = self.params_index.* + 1;
+    std.log.debug("delimiter: '{}'", .{ self.delimiter });
+    const end_word = std.mem.indexOfPos(u8, self.params, start_word, &.{ self.delimiter, '\n', '\r' }) orelse return error.EndOfStream;
+
+    _ = try self.var_stack.addOne();
+    self.params_index.* = end_word + 1;
+
+    try self.words.put(self.params[start_word..end_word], .{ .variable = @bitCast(i32, @truncate(u32, self.var_stack.items.len - 1))});
+}
+pub const variable = Core {
+    .func = variableFn,
+    .def = "",
+};

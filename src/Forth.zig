@@ -38,7 +38,6 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
         if (decl.is_pub)
             try self.words.put(decl.name, .{ .core = @field(core, decl.name) });
     }
-    try self.words.put("delimiter", .{ .variable = self.delimiter });
     var lines = std.mem.tokenize(u8, compiler, "\n\r");
     while (lines.next()) |line| try self.readInput(line, 1);
     return self;
