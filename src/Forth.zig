@@ -34,7 +34,7 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
         if (decl.is_pub)
             try self.words.put(decl.name, .{ .core = @field(core, decl.name) });
     }
-    try self.words.put("delimiter", .{ .variable = self.delimiter });
+    try self.words.put("delimiter", .{ .variable = ' ' });
     try self.readInput(compiler, 1);
     return self;
 }
@@ -43,12 +43,15 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
         try self.output.writeAll("\nToo much recursion!\nExiting...");
         return error.TooMuchRecursion;
     }
-    self.params = input;
-    var tokens = std.mem.tokenize(u8, input, " \r\n");
+
+    self.params = std.ascii.allocLowerString(self.arena.allocator(), input);
+    defer self.arena.allocator().free(self.params);
+
+    var tokens = std.mem.tokenize(u8, self.params, " \r\n");
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
-            try self.compileWord(input);
-            tokens.index = std.mem.indexOfPosLinear(u8, input, tokens.index, ";").? + 1;
+            try self.compileWord(self.params);
+            tokens.index = std.mem.indexOfPosLinear(u8, self.params, tokens.index, ";").? + 1;
         }
         else if (self.words.contains(token)) {
             switch (self.words.get(token).?) {
