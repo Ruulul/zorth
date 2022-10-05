@@ -62,20 +62,20 @@ pub const @"*" = Core {
     .func = @"*Fn",
     .def = "( n1 n2 -- n1*n2 )",
 };
-// TODO: replace with /MOD
-fn @"/Fn" (self: *Forth) anyerror!void {
+fn @"/MODFn" (self: *Forth) anyerror!void {
     const v1 = try popStack(self);
     const v2 = try popStack(self);
     try self.stack.append(@divTrunc(v2, v1));
+    try self.stack.append(@rem(v2, v1));
 }
 pub const @"/" = Core {
     .func = @"/Fn",
-    .def = "( n1 n2 -- n1/n2 )",
+    .def = "( n1 n2 -- result mod  )",
 };
 fn pickFn(self: *Forth) anyerror!void {
     const n = try popStack(self);
-    const i = self.stack.items.len - @as(usize, @bitCast(u32, n)) - 1;
-    const nth = if (i >= 0 and i < self.stack.items.len) self.stack.items[i] else return error.StackUnderflow;
+    const i = self.stack.items.len - @as(usize, @bitCast(u32, n));
+    const nth = if (i > 0 and i <= self.stack.items.len) self.stack.items[i - 1] else return error.StackUnderflow;
     try self.stack.append(nth);
 }
 pub const pick = Core {
@@ -84,9 +84,9 @@ pub const pick = Core {
 };
 fn rollFn(self: *Forth) anyerror!void {
     const n = try popStack(self);
-    const i = self.stack.items.len - @as(usize, @bitCast(u32, n)) - 1;
-    if (i >= 0 and i < self.stack.items.len) 
-        try self.stack.append(self.stack.orderedRemove(i)) 
+    const i = self.stack.items.len - @as(usize, @bitCast(u32, n));
+    if (i > 0 and i <= self.stack.items.len) 
+        try self.stack.append(self.stack.orderedRemove(i - 1)) 
     else return error.StackUnderflow;
 }
 pub const roll = Core {

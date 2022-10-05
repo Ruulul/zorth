@@ -5,3 +5,5 @@
 : cr  10 emit ;
 : ( 40 delimiter ! parse drop ;
 : \ -1 delimiter ! parse drop ;
+: / /mod drop ;
+: mod /mod swap drop ;
