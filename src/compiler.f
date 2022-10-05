@@ -7,4 +7,4 @@
 : \   -1 delimiter ! parse drop ;
 : / /mod drop ;
 : % /mod swap drop ;
-mod % ;
+: mod % ;
