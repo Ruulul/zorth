@@ -150,4 +150,11 @@ pub const see = Core {
     .func = seeFn,
     .def = "( -- )",
 };
-pub const SEE = see;
+
+fn @".sFn"(self: *Forth) anyerror!void {
+    for (self.stack.items) |item| try self.output.print("{d} ", .{item});
+}
+pub const @".s" = Core {
+    .func = @".sFn",
+    .def = "( -- )",
+};
