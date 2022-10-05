@@ -103,18 +103,11 @@ pub const drop = Core {
 fn @".Fn"(self: *Forth) anyerror!void {
     const value = try popStack(self);
     try std.fmt.formatInt(value, 10, .upper, .{}, self.output);
-    try cr.func(self);
+    try self.output.writeByte('\n');
 }
 pub const @"." = Core {
     .func = @".Fn",
     .def = "( n -- )",
-};
-fn crFn(self: *Forth) anyerror!void {
-    try self.output.writeByte('\n');
-}
-pub const cr = Core {
-    .func = crFn,
-    .def = "( -- )",
 };
 //TODO: Better char handling
 fn emitFn(self: *Forth) anyerror!void {
@@ -125,13 +118,6 @@ pub const emit = Core {
     .func = emitFn,
     .def = "( c -- )",
 };
-fn @"(Fn"(self: *Forth) anyerror!void {
-    if (std.mem.indexOfPosLinear(u8, self.params, self.params_index.*, ")")) |new_index| self.params_index.* = new_index + 1;
-}
-pub const @"(" = Core {
-    .func = @"(Fn",
-    .def = "( -- )",
-};
 fn seeFn(self: *Forth) anyerror!void {
     var tokens = std.mem.tokenize(u8, self.params, " \r\n");
     tokens.index = self.params_index.*;
@@ -140,9 +126,13 @@ fn seeFn(self: *Forth) anyerror!void {
         if (self.words.get(word)) |entry| {
             try self.output.writeAll(switch (entry) {
                 .core => |func| func.def,
-                .user_defined => |e| e,
+                .word_def => |e| e,
+                .variable => |v| blk: {
+                    var buf: [20]u8 = undefined;
+                    break :blk try std.fmt.bufPrint(&buf, "{d}", .{v});
+                },
             });
-            try cr.func(self);
+            try self.output.writeByte('\n');
         } else try self.output.print("{s} ?", .{word});
     }
 }
@@ -157,4 +147,24 @@ fn @".sFn"(self: *Forth) anyerror!void {
 pub const @".s" = Core {
     .func = @".sFn",
     .def = "( -- )",
+};
+fn @"!Fn"(self: *Forth) anyerror!void {
+    const addr = try popStack(self);
+    const value = try popStack(self);
+
+    self.var_stack.items[addr] = value;
+}
+pub const @"!" = Core {
+    .func = @"!Fn",
+    .def = " ",
+};
+fn @"@Fn"(self: *Forth) anyerror!void {
+    const addr = try popStack(self);
+    const value = self.var_stack.items[addr];
+
+    try self.stack.append(value);
+}
+pub const @"@" = Core {
+    .func = @"@Fn",
+    .def = " ",
 };

@@ -4,6 +4,7 @@ const core = @import("core.zig");
 
 arena: *std.heap.ArenaAllocator,
 stack: StackType,
+var_stack: StackType,
 params: []const u8 = undefined,
 params_index: *usize = undefined,
 words: WordListType,
@@ -14,7 +15,8 @@ const StackType = std.ArrayList(i32);
 const WordListType = std.StringHashMap(Entry);
 pub const Entry = union(enum) {
     core: Core,
-    user_defined: []const u8,
+    word_def: []const u8,
+    variable: i32,
 };
 pub const Core = struct {
     func: *const fn (*Forth) anyerror!void,
@@ -25,13 +27,14 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
     var self = Forth{ 
         .arena = arena, 
         .output = output, 
-        .stack = StackType.init(arena.allocator()), 
-        .words = WordListType.init(arena.allocator()),
+        .stack = StackType.initCapacity(arena.allocator(), 20), 
+        .words = WordListType.initCapacity(arena.allocator(), 20),
     };
     inline for (@typeInfo(core).Struct.decls) |decl| {
         if (decl.is_pub)
             try self.words.put(decl.name, .{ .core = @field(core, decl.name) });
     }
+    try self.words.put("delimiter", .{ .variable = self.delimiter });
     try self.readInput(compiler, 1);
     return self;
 }
@@ -42,7 +45,6 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     }
     self.params = input;
     var tokens = std.mem.tokenize(u8, input, " \r\n");
-    self.params_index = &tokens.index;
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
             try self.compileWord(input);
@@ -54,7 +56,8 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
                         error.StackUnderflow => self.output.writeAll("stack underflow \n"),
                         else => self.output.writeAll(@errorName(e))
                     },
-                .user_defined => |def| try self.readInput(def, depth + 1),
+                .word_def => |def| try self.readInput(def, depth + 1),
+                .variable => |index| try self.stack.append(index),
             }
         } else {
             var number = std.fmt.parseInt(i32, token, 0) catch { try self.output.print(" {s} ?\n", .{token}); continue; };
@@ -72,7 +75,7 @@ pub fn compileWord(self: *Forth, input: []const u8) !void {
     const end_of_def = std.mem.indexOfPosLinear(u8, input, start_of_def, ";").?;
     const def = input[start_of_def..end_of_def];
 
-    try self.words.put(try self.arena.allocator().dupe(u8, word), .{ .user_defined = try self.arena.allocator().dupe(u8, def) });
+    try self.words.put(try self.arena.allocator().dupe(u8, word), .{ .word_def = try self.arena.allocator().dupe(u8, def) });
 }
 pub fn deinit(self: *Forth) void {
     self.stack.deinit();
