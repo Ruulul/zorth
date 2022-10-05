@@ -174,3 +174,40 @@ pub const @"@" = Core {
     .func = @"@Fn",
     .def = "( addr -- value )",
 };
+fn @"\"Fn"(self: *Forth) anyerror!void {
+    const previous_delimiter = self.words.get("delimiter");
+    try self.words.put("delimiter", .{ .variable = '"' });
+    try parseFn(self);
+    try self.words.put("delimiter", previous_delimiter orelse Forth.Entry{ .variable = ' ' });
+}
+pub const @"\"" = Core {
+    .func = @"\"Fn",
+    .def = "( -- )",
+};
+fn typeFn(self: *Forth) anyerror!void {
+    const len = @as(usize, @bitCast(u32, try popStack(self)));
+    const addr = @as(usize, @bitCast(u32, try popStack(self)));
+
+    try self.output.writeAll(self.string_stack.items[addr..][0..len]);
+}
+pub const @"type" = Core {
+    .func = typeFn,
+    .def = "( addr len -- )",
+};
+fn parseFn(self: *Forth) anyerror!void {
+    const delimiter = self.words.get("delimiter").?;
+    self.params_index.* += 1;
+    const parsing = std.mem.indexOfPos(u8, self.params, self.params_index.*, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)) });
+
+    if (parsing) |index| {
+        var addr = self.string_stack.items.len;
+        try self.string_stack.appendSlice(self.params[self.params_index.* .. index]);
+        try self.stack.append(@bitCast(i32, @truncate(u32, addr)));
+        try self.stack.append(@bitCast(i32, @truncate(u32, index - self.params_index.*)));
+        self.params_index.* = index + 1;
+    } else {
+        self.params_index.* = self.params.len - 1;
+        try self.stack.append(0);
+        try self.stack.append(0);
+    }
+}
