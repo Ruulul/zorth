@@ -45,7 +45,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
             try self.compileWord(input);
-            tokens.index = std.mem.indexOfPos(u8, input, tokens.index, ";").? + 1;
+            tokens.index = std.mem.indexOfPosLinear(u8, input, tokens.index, ";").? + 1;
         }
         else if (self.words.contains(token)) {
             switch (self.words.get(token).?) {
@@ -63,12 +63,12 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     if (depth == 0) try self.output.writeAll("\nok");
 }
 pub fn compileWord(self: *Forth, input: []const u8) !void {
-    const start_of_word = std.mem.indexOfPos(u8, input, 0, ":").? + 2;
-    const end_of_word = std.mem.indexOfPos(u8, input, start_of_word, " ").?;
+    const start_of_word = std.mem.indexOfPosLinear(u8, input, 0, ":").? + 2;
+    const end_of_word = std.mem.indexOfPosLinear(u8, input, start_of_word, " ").?;
     const word = input[start_of_word..end_of_word];
 
     const start_of_def = end_of_word + 1;
-    const end_of_def = std.mem.indexOfPos(u8, input, start_of_def, ";").?;
+    const end_of_def = std.mem.indexOfPosLinear(u8, input, start_of_def, ";").?;
     const def = input[start_of_def..end_of_def];
 
     try self.words.put(try self.arena.allocator().dupe(u8, word), .{ .user_defined = try self.arena.allocator().dupe(u8, def) });

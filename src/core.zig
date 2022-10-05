@@ -126,7 +126,7 @@ pub const emit = Core {
     .def = "( c -- )",
 };
 fn @"(Fn"(self: *Forth) anyerror!void {
-    if (std.mem.indexOfPos(u8, self.params, self.params_index.*, ")")) |new_index| self.params_index.* = new_index + 1;
+    if (std.mem.indexOfPosLinear(u8, self.params, self.params_index.*, ")")) |new_index| self.params_index.* = new_index + 1;
 }
 pub const @"(" = Core {
     .func = @"(Fn",
