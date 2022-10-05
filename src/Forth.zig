@@ -27,8 +27,9 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
     var self = Forth{ 
         .arena = arena, 
         .output = output, 
-        .stack = StackType.initCapacity(arena.allocator(), 20), 
-        .words = WordListType.initCapacity(arena.allocator(), 20),
+        .stack = StackType.init(arena.allocator()), 
+        .words = WordListType.init(arena.allocator()),
+        .var_stack = StackType.init(arena.allocator()),
     };
     inline for (@typeInfo(core).Struct.decls) |decl| {
         if (decl.is_pub)
@@ -44,7 +45,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
         return error.TooMuchRecursion;
     }
 
-    self.params = std.ascii.allocLowerString(self.arena.allocator(), input);
+    self.params = try std.ascii.allocLowerString(self.arena.allocator(), input);
     defer self.arena.allocator().free(self.params);
 
     var tokens = std.mem.tokenize(u8, self.params, " \r\n");

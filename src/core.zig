@@ -68,10 +68,6 @@ fn @"/MODFn" (self: *Forth) anyerror!void {
     try self.stack.append(@divTrunc(v2, v1));
     try self.stack.append(@rem(v2, v1));
 }
-pub const @"/" = Core {
-    .func = @"/Fn",
-    .def = "( n1 n2 -- result mod  )",
-};
 fn pickFn(self: *Forth) anyerror!void {
     const n = try popStack(self);
     const i = self.stack.items.len - @as(usize, @bitCast(u32, n));
@@ -152,7 +148,7 @@ fn @"!Fn"(self: *Forth) anyerror!void {
     const addr = try popStack(self);
     const value = try popStack(self);
 
-    self.var_stack.items[addr] = value;
+    self.var_stack.items[@as(usize, @bitCast(u32, addr))] = value;
 }
 pub const @"!" = Core {
     .func = @"!Fn",
@@ -160,7 +156,7 @@ pub const @"!" = Core {
 };
 fn @"@Fn"(self: *Forth) anyerror!void {
     const addr = try popStack(self);
-    const value = self.var_stack.items[addr];
+    const value = self.var_stack.items[@as(usize, @bitCast(u32, addr))];
 
     try self.stack.append(value);
 }
