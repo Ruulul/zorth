@@ -4,8 +4,7 @@ const Forth = @import("Forth.zig");
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
-    const inner_allocator = gpa.allocator();
-    var arena = std.heap.ArenaAllocator.init(inner_allocator);
+    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
     const allocator = arena.allocator();
     defer arena.deinit();
 
