@@ -148,18 +148,27 @@ pub const @".s" = Core {
     .func = @".sFn",
     .def = "( -- )",
 };
+
+fn @".mFn"(self: *Forth) anyerror!void {
+    for (self.memory.items) |item| try self.output.print("{d} ", .{item});
+}
+pub const @".m" = Core {
+    .func = @".mFn",
+    .def = "( -- )",
+};
+fn @".wFn"(self: *Forth) anyerror!void {
+    for (self.string_stack.items) |item| try self.output.print("{c}", .{item});
+}
+pub const @".w" = Core {
+    .func = @".wFn",
+    .def = "( -- )",
+};
 fn @"!Fn"(self: *Forth) anyerror!void {
     const addr = try popStack(self);
     const value = try popStack(self);
 
     std.log.debug("addr: {any}, value: {any}",.{addr, value});
-    self.var_stack.items[@as(usize, @bitCast(u32, addr))] = value;
-
-    if (self.words.get("delimiter")) |delimiter_addr| {
-        if (delimiter_addr == .variable and delimiter_addr.variable == addr) {
-            self.delimiter = @truncate(u8, @bitCast(u32, value));
-        }
-    }
+    self.memory.items[@as(usize, @bitCast(u32, addr))] = value;
 }
 pub const @"!" = Core {
     .func = @"!Fn",
@@ -167,7 +176,7 @@ pub const @"!" = Core {
 };
 fn @"@Fn"(self: *Forth) anyerror!void {
     const addr = try popStack(self);
-    const value = self.var_stack.items[@as(usize, @bitCast(u32, addr))];
+    const value = self.memory.items[@as(usize, @bitCast(u32, addr))];
 
     try self.stack.append(value);
 }
@@ -197,7 +206,7 @@ pub const @"type" = Core {
     .def = "( addr len -- )",
 };
 fn parseFn(self: *Forth) anyerror!void {
-    const delimiter = self.words.get("delimiter").?;
+    const delimiter = self.words.get("delimiter") orelse Forth.Entry{ .variable = ' '};
     self.params_index.* += 1;
     const parsing = std.mem.indexOfPos(u8, self.params, self.params_index.*, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)) });
 
@@ -218,16 +227,36 @@ pub const parse = Core {
     .def = "( -- addr len)",
 };
 fn variableFn(self: *Forth) anyerror!void {
-    const start_word = self.params_index.* + 1;
-    std.log.debug("delimiter: '{}'", .{ self.delimiter });
-    const end_word = std.mem.indexOfPos(u8, self.params, start_word, &.{ self.delimiter, '\n', '\r' }) orelse return error.EndOfStream;
+    const delimiter = self.words.get("delimiter") orelse Forth.Entry{ .variable = ' '};
+    const start_word = self.params_index.*;
+    std.log.debug("delimiter: '{any}'", .{ delimiter });
+    const end_word = std.mem.indexOfPos(u8, self.params, start_word, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)), '\r', '\n' }) orelse return error.EndOfStream;
 
-    _ = try self.var_stack.addOne();
+    _ = try self.memory.addOne();
     self.params_index.* = end_word + 1;
 
-    try self.words.put(self.params[start_word..end_word], .{ .variable = @bitCast(i32, @truncate(u32, self.var_stack.items.len - 1))});
+    const addr = @bitCast(i32, @truncate(u32, self.memory.items.len - 1));
+    std.log.debug("word: '{s}'", .{ self.params[start_word..end_word] });
+    try self.words.put(self.params[start_word..end_word], .{ .variable = addr });
+    try self.stack.append(addr);
 }
 pub const variable = Core {
     .func = variableFn,
     .def = "",
+};
+fn allotFn(self: *Forth) anyerror!void {
+    const n = try popStack(self);
+    try self.memory.appendNTimes(0, @as(usize, @bitCast(u32, n)));
+}
+pub const allot = Core {
+    .func = allotFn,
+    .def = "( n -- )",
+};
+fn @",Fn"(self: *Forth) anyerror!void {
+    const n = try popStack(self);
+    try self.memory.append(n);
+}
+pub const @"," = Core {
+    .func = @",Fn",
+    .def = "( n -- )"
 };
