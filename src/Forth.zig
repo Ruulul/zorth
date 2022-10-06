@@ -3,17 +3,22 @@ const std = @import("std");
 const core = @import("core.zig");
 
 arena: *std.heap.ArenaAllocator,
-stack: StackType,
-var_stack: StackType,
+stack: MainStackType,
+memory: MainStackType,
 string_stack: std.ArrayList(u8),
 params: []const u8 = undefined,
 params_index: *usize = undefined,
-delimiter: u8 = ' ',
 words: WordListType,
 output: std.fs.File.Writer,
 max_depth: usize = 100,
 
-const StackType = std.ArrayList(i32);
+mode: Mode = .interpreter,
+
+const Mode = enum {
+    compiler,
+    interpreter,
+};
+const MainStackType = std.ArrayList(i32);
 const WordListType = std.StringHashMap(Entry);
 pub const Entry = union(enum) {
     core: Core,
@@ -24,14 +29,15 @@ pub const Core = struct {
     func: *const fn (*Forth) anyerror!void,
     def: []const u8,
 };
+pub const CoreFn = *const fn (*Forth) anyerror!void;
 const compiler = @embedFile("compiler.f");
 pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth {
     var self = Forth{ 
         .arena = arena, 
         .output = output, 
-        .stack = StackType.init(arena.allocator()), 
+        .stack = MainStackType.init(arena.allocator()), 
         .words = WordListType.init(arena.allocator()),
-        .var_stack = StackType.init(arena.allocator()),
+        .memory = MainStackType.init(arena.allocator()),
         .string_stack = std.ArrayList(u8).init(arena.allocator()),
     };
     inline for (@typeInfo(core).Struct.decls) |decl| {
@@ -51,7 +57,13 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     self.params = try std.ascii.allocLowerString(self.arena.allocator(), input);
     defer self.arena.allocator().free(self.params);
 
-    var tokens = std.mem.tokenize(u8, self.params, &.{ self.delimiter, '\r', '\n' });
+    var tokens = std.mem.tokenize(u8, 
+        self.params, 
+        &.{ 
+            @truncate(u8, @bitCast(u32, (' '))), 
+            '\r', 
+            '\n', 
+        });
     self.params_index = &tokens.index;
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, ":")) {
