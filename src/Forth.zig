@@ -5,7 +5,6 @@ const core = @import("core.zig");
 arena: *std.heap.ArenaAllocator,
 stack: MainStackType,
 memory: MainStackType,
-string_stack: std.ArrayList(u8),
 params: []const u8 = undefined,
 params_index: *usize = undefined,
 words: WordListType,
@@ -38,7 +37,6 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
         .stack = MainStackType.init(arena.allocator()), 
         .words = WordListType.init(arena.allocator()),
         .memory = MainStackType.init(arena.allocator()),
-        .string_stack = std.ArrayList(u8).init(arena.allocator()),
     };
     inline for (@typeInfo(core).Struct.decls) |decl| {
         if (decl.is_pub)

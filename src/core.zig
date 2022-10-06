@@ -157,7 +157,7 @@ pub const @".m" = Core {
     .def = "( -- )",
 };
 fn @".wFn"(self: *Forth) anyerror!void {
-    for (self.string_stack.items) |item| try self.output.print("{c}", .{item});
+    for (self.memory.items) |item| try self.output.print("{c}", .{@bitCast(u8, @truncate(i8, item))});
 }
 pub const @".w" = Core {
     .func = @".wFn",
@@ -184,7 +184,6 @@ pub const @"@" = Core {
     .func = @"@Fn",
     .def = "( addr -- value )",
 };
-//TODO: rewrite on forth to put in the string buffer
 fn @"\"Fn"(self: *Forth) anyerror!void {
     const previous_delimiter = self.words.get("delimiter");
     try self.words.put("delimiter", .{ .variable = '"' });
@@ -199,27 +198,27 @@ fn typeFn(self: *Forth) anyerror!void {
     const len = @as(usize, @bitCast(u32, try popStack(self)));
     const addr = @as(usize, @bitCast(u32, try popStack(self)));
 
-    try self.output.writeAll(self.string_stack.items[addr..][0..len]);
+    for (self.memory.items[addr..][0..len]) |signed| try self.output.writeByte(@bitCast(u8, @truncate(i8, signed)));
 }
 pub const @"type" = Core {
     .func = typeFn,
     .def = "( addr len -- )",
 };
 fn parseFn(self: *Forth) anyerror!void {
-    const delimiter = self.words.get("delimiter") orelse Forth.Entry{ .variable = ' '};
+    const delimiter = self.words.get("delimiter") orelse Forth.Entry{ .variable = ' ' };
     self.params_index.* += 1;
     const parsing = std.mem.indexOfPos(u8, self.params, self.params_index.*, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)) });
 
     if (parsing) |index| {
-        var addr = self.string_stack.items.len;
-        try self.string_stack.appendSlice(self.params[self.params_index.* .. index]);
+        var addr = self.memory.items.len;
+        for (self.params[self.params_index.* .. index]) |byte| try self.memory.append(@as(i32, @bitCast(i8, byte)));
         try self.stack.append(@bitCast(i32, @truncate(u32, addr)));
         try self.stack.append(@bitCast(i32, @truncate(u32, index - self.params_index.*)));
         self.params_index.* = index + 1;
     } else {
         self.params_index.* = self.params.len - 1;
-        try self.stack.append(0);
-        try self.stack.append(0);
+        try self.stack.append(-1);
+        try self.stack.append(-1);
     }
 }
 pub const parse = Core {
