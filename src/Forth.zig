@@ -60,7 +60,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
     var tokens = std.mem.tokenize(u8, 
         self.params, 
         &.{ 
-            @truncate(u8, @bitCast(u32, (' '))), 
+             ' ', 
             '\r', 
             '\n', 
         });
