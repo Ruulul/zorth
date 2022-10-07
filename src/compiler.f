@@ -6,12 +6,13 @@
 : cr  10 emit ;
 : true -1 ;
 : false 0 ;
-variable delimiter
+variable delimiter drop
 : reset-delimiter 32 delimiter ! ;
 reset-delimiter
 : (   40 delimiter ! parse 2drop reset-delimiter ;
 : \   -1 delimiter ! parse 2drop reset-delimiter ;
-: ."  34 delimiter ! parse  type reset-delimiter ;
+: "   34 delimiter ! parse reset-delimiter ;
+: ."  34 delimiter ! parse swap dup rot type forget reset-delimiter ;
 : / /mod drop ;
 : % /mod swap drop ;
 : mod % ;

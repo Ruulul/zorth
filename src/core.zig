@@ -128,13 +128,6 @@ fn @"@Fn"(self: *Forth) anyerror!void {
     try self.stack.append(value);
 }
 pub const @"@" = Core.make(@"@Fn", "( addr -- value )");
-fn @"\"Fn"(self: *Forth) anyerror!void {
-    const previous_delimiter = self.words.get("delimiter");
-    try self.words.put("delimiter", .{ .variable = '"' });
-    try parseFn(self);
-    try self.words.put("delimiter", previous_delimiter orelse Forth.Entry{ .variable = ' ' });
-}
-pub const @"\"" = Core.make(@"\"Fn", "( -- )");
 fn typeFn(self: *Forth) anyerror!void {
     const len = @as(usize, @bitCast(u32, try popStack(self)));
     const addr = @as(usize, @bitCast(u32, try popStack(self)));
@@ -144,7 +137,9 @@ fn typeFn(self: *Forth) anyerror!void {
 pub const @"type" = Core.make(typeFn, "( addr len -- )");
 fn parseFn(self: *Forth) anyerror!void {
     const delimiter = self.words.get("delimiter") orelse Forth.Entry{ .variable = ' ' };
+    std.log.debug("delimiter: '{any}'", .{ delimiter });
     self.params_index.* += 1;
+    std.log.debug("input: '{s}'", .{ self.params[self.params_index.*..] });
     const parsing = std.mem.indexOfPos(u8, self.params, self.params_index.*, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)) });
 
     if (parsing) |index| {
