@@ -25,8 +25,11 @@ pub const Entry = union(enum) {
     variable: i32,
 };
 pub const Core = struct {
-    func: *const fn (*Forth) anyerror!void,
+    func: CoreFn,
     def: []const u8,
+    pub fn make(coreFn: CoreFn, defFn: []const u8) Core {
+        var self = Core{ .func = coreFn, .def = defFn };
+    }
 };
 pub const CoreFn = *const fn (*Forth) anyerror!void;
 const compiler = @embedFile("compiler.f");
@@ -57,8 +60,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
 
     var tokens = std.mem.tokenize(u8, 
         self.params, 
-        &.{ 
-             ' ', 
+        &.{ ' ', 
             '\r', 
             '\n', 
         });
@@ -72,7 +74,7 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
             switch (self.words.get(token).?) {
                 .core => |func| func.func(self) catch |e| try switch (e) {
                         error.StackUnderflow => self.output.writeAll("stack underflow \n"),
-                        else => self.output.writeAll(@errorName(e))
+                        else => self.output.print("{s} \n", .{ @errorName(e) }),
                     },
                 .word_def => |def| try self.readInput(def, depth + 1),
                 .variable => |index| try self.stack.append(index),
