@@ -18,11 +18,17 @@ const Mode = enum {
     interpreter,
 };
 const MainStackType = std.ArrayList(i32);
-const WordListType = std.StringHashMap(Entry);
-pub const Entry = union(enum) {
-    core: Core,
-    word_def: []const u8,
-    variable: i32,
+const WordListType = std.ArrayList(Entry);
+pub const Entry = struct {
+    word:  []const u8,
+    data: union(enum) {
+    core: struct {
+        def: []const u8,
+        func: CoreFn,
+    },
+    word_def:[]const u8,
+    variable: usize,
+}
 };
 pub const Core = struct {
     func: CoreFn,
@@ -43,7 +49,14 @@ pub fn init(arena: *std.heap.ArenaAllocator, output: std.fs.File.Writer) !Forth 
     };
     inline for (@typeInfo(core).Struct.decls) |decl| {
         if (decl.is_pub)
-            try self.words.put(decl.name, .{ .core = @field(core, decl.name) });
+            try self.words.append(.{ 
+                .word = decl.name, 
+                .data = .{ .core = .{ 
+                    .def = @field(core, decl.name).def, 
+                    .func = @field(core, decl.name).func 
+                    }
+                }
+            });
     }
     var lines = std.mem.tokenize(u8, compiler, "\n\r");
     while (lines.next()) |line| try self.readInput(line, 1);
@@ -70,14 +83,14 @@ pub fn readInput(self: *Forth, input: []const u8, depth: usize) !void {
             try self.compileWord(self.params);
             tokens.index = std.mem.indexOfPosLinear(u8, self.params, tokens.index, ";").? + 1;
         }
-        else if (self.words.contains(token)) {
-            switch (self.words.get(token).?) {
+        else if (self.getWord(token)) |word| {
+            switch (word.data) {
                 .core => |func| func.func(self) catch |e| try switch (e) {
                         error.StackUnderflow => self.output.writeAll("stack underflow \n"),
                         else => self.output.print("{s} \n", .{ @errorName(e) }),
                     },
-                .word_def => |def| try self.readInput(def, depth + 1),
-                .variable => |index| try self.stack.append(index),
+                .word_def => |word_def| try self.readInput(word_def, depth + 1),
+                .variable => |index| try self.stack.append(@bitCast(i32, @truncate(u32, index))),
             }
         } else {
             var number = std.fmt.parseInt(i32, token, 0) catch { try self.output.print(" {s} ?\n", .{token}); continue; };
@@ -95,7 +108,19 @@ pub fn compileWord(self: *Forth, input: []const u8) !void {
     const end_of_def = std.mem.indexOfPosLinear(u8, input, start_of_def, ";").?;
     const def = input[start_of_def..end_of_def];
 
-    try self.words.put(try self.arena.allocator().dupe(u8, word), .{ .word_def = try self.arena.allocator().dupe(u8, def) });
+    try self.words.append(.{ 
+        .word = try self.arena.allocator().dupe(u8, word), 
+        .data = .{ .word_def = try self.arena.allocator().dupe(u8, def) },
+    });
+}
+pub fn getWord(self: *Forth, word: []const u8) ?Entry {
+    var i = self.words.items.len - 1;
+    return while (i >= 0) {
+        const entry = self.words.items[i];
+        if (std.mem.eql(u8, word, entry.word)) break entry;
+        if (i > 0) i -= 1 else break null;
+        continue;
+    };
 }
 pub fn deinit(self: *Forth) void {
     self.stack.deinit();

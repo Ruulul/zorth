@@ -87,13 +87,13 @@ fn seeFn(self: *Forth) anyerror!void {
     tokens.index = self.params_index.*;
     defer self.params_index.* = tokens.index;
     if (tokens.next()) |word| {
-        if (self.words.get(word)) |entry| {
-            try self.output.writeAll(switch (entry) {
+        if (self.getWord(word)) |entry| {
+            try self.output.writeAll(switch (entry.data) {
                 .core => |func| func.def,
                 .word_def => |e| e,
-                .variable => |v| blk: {
+                .variable => |addr| blk: {
                     var buf: [20]u8 = undefined;
-                    break :blk try std.fmt.bufPrint(&buf, "{d}", .{v});
+                    break :blk try std.fmt.bufPrint(&buf, "{d}", .{self.memory.items[addr]});
                 },
             });
             try self.output.writeByte('\n');
@@ -117,7 +117,6 @@ fn @"!Fn"(self: *Forth) anyerror!void {
     const addr = try popStack(self);
     const value = try popStack(self);
 
-    std.log.debug("addr: {any}, value: {any}", .{addr, value});
     self.memory.items[@as(usize, @bitCast(u32, addr))] = value;
 }
 pub const @"!" = Core.make(@"!Fn", "( value addr -- )");
@@ -136,11 +135,11 @@ fn typeFn(self: *Forth) anyerror!void {
 }
 pub const @"type" = Core.make(typeFn, "( addr len -- )");
 fn parseFn(self: *Forth) anyerror!void {
-    const delimiter = self.words.get("delimiter") orelse Forth.Entry{ .variable = ' ' };
-    std.log.debug("delimiter: '{any}'", .{ delimiter });
+    const delimiter = if (self.getWord("delimiter")) |d| @truncate(u8, @bitCast(u32, self.memory.items[d.data.variable])) else ' ';
+    std.log.debug("delimiter: '{c}'", .{ delimiter });
     self.params_index.* += 1;
     std.log.debug("input: '{s}'", .{ self.params[self.params_index.*..] });
-    const parsing = std.mem.indexOfPos(u8, self.params, self.params_index.*, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)) });
+    const parsing = std.mem.indexOfPos(u8, self.params, self.params_index.*, &.{ delimiter });
 
     if (parsing) |index| {
         var addr = self.memory.items.len;
@@ -156,19 +155,19 @@ fn parseFn(self: *Forth) anyerror!void {
 }
 pub const parse = Core.make(parseFn, "( -- addr len)");
 fn variableFn(self: *Forth) anyerror!void {
-    const delimiter = self.words.get("delimiter") orelse Forth.Entry{ .variable = ' '};
+    const delimiter = if (self.getWord("delimiter")) |d| @truncate(u8, @bitCast(u32, self.memory.items[d.data.variable])) else ' ';
     const start_word = self.params_index.* + 1;
-    std.log.debug("delimiter: '{any}'", .{ delimiter });
+    std.log.debug("delimiter: '{c}'", .{ delimiter });
     std.log.debug("word until now: '{s}'", .{ self.params[start_word..] });
-    const end_word = std.mem.indexOfPos(u8, self.params, start_word, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)) }) orelse self.params.len;
+    const end_word = std.mem.indexOfPos(u8, self.params, start_word, &.{ delimiter }) orelse self.params.len;
 
     _ = try self.memory.addOne();
     self.params_index.* = end_word;
 
-    const addr = @bitCast(i32, @truncate(u32, self.memory.items.len - 1));
+    const addr = self.memory.items.len - 1;
     std.log.debug("word: '{s}'", .{ self.params[start_word..end_word] });
-    try self.words.put(try self.arena.allocator().dupe(u8, self.params[start_word..end_word]), .{ .variable = addr });
-    try self.stack.append(addr);
+    try self.words.append(.{ .word = try self.arena.allocator().dupe(u8, self.params[start_word..end_word]), .data = .{ .variable = addr }});
+    try self.stack.append(@bitCast(i32, @truncate(u32, addr)));
 }
 pub const variable = Core.make(variableFn, "");
 fn allotFn(self: *Forth) anyerror!void {
