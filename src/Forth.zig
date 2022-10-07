@@ -28,7 +28,7 @@ pub const Core = struct {
     func: CoreFn,
     def: []const u8,
     pub fn make(coreFn: CoreFn, defFn: []const u8) Core {
-        var self = Core{ .func = coreFn, .def = defFn };
+        return Core{ .func = coreFn, .def = defFn };
     }
 };
 pub const CoreFn = *const fn (*Forth) anyerror!void;
