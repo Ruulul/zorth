@@ -4,6 +4,8 @@
 : swap 1 roll ;
 : rot  2 roll ;
 : cr  10 emit ;
+: true -1 ;
+: false 0 ;
 variable delimiter
 : reset-delimiter 32 delimiter ! ;
 reset-delimiter
