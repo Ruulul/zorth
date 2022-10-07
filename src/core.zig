@@ -117,7 +117,7 @@ fn @"!Fn"(self: *Forth) anyerror!void {
     const addr = try popStack(self);
     const value = try popStack(self);
 
-    std.log.debug("addr: {any}, value: {any}",.{addr, value});
+    std.log.debug("addr: {any}, value: {any}", .{addr, value});
     self.memory.items[@as(usize, @bitCast(u32, addr))] = value;
 }
 pub const @"!" = Core.make(@"!Fn", "( value addr -- )");
@@ -162,16 +162,17 @@ fn parseFn(self: *Forth) anyerror!void {
 pub const parse = Core.make(parseFn, "( -- addr len)");
 fn variableFn(self: *Forth) anyerror!void {
     const delimiter = self.words.get("delimiter") orelse Forth.Entry{ .variable = ' '};
-    const start_word = self.params_index.*;
+    const start_word = self.params_index.* + 1;
     std.log.debug("delimiter: '{any}'", .{ delimiter });
-    const end_word = std.mem.indexOfPos(u8, self.params, start_word, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)), '\r', '\n' }) orelse return error.EndOfStream;
+    std.log.debug("word until now: '{s}'", .{ self.params[start_word..] });
+    const end_word = std.mem.indexOfPos(u8, self.params, start_word, &.{ @truncate(u8, @bitCast(u32, delimiter.variable)) }) orelse self.params.len;
 
     _ = try self.memory.addOne();
-    self.params_index.* = end_word + 1;
+    self.params_index.* = end_word;
 
     const addr = @bitCast(i32, @truncate(u32, self.memory.items.len - 1));
     std.log.debug("word: '{s}'", .{ self.params[start_word..end_word] });
-    try self.words.put(self.params[start_word..end_word], .{ .variable = addr });
+    try self.words.put(try self.arena.allocator().dupe(u8, self.params[start_word..end_word]), .{ .variable = addr });
     try self.stack.append(addr);
 }
 pub const variable = Core.make(variableFn, "");
@@ -180,6 +181,11 @@ fn allotFn(self: *Forth) anyerror!void {
     try self.memory.appendNTimes(0, @as(usize, @bitCast(u32, n)));
 }
 pub const allot = Core.make(allotFn, "( n -- )");
+fn forgetFn(self: *Forth) anyerror!void {
+    const addr = try popStack(self);
+    self.memory.shrinkAndFree(@as(usize, @bitCast(u32, addr)));
+}
+pub const forget = Core.make(forgetFn, "( addr -- )");
 fn @",Fn"(self: *Forth) anyerror!void {
     const n = try popStack(self);
     try self.memory.append(n);
